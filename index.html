@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Drink-Budget</title>
+<meta name="theme-color" content="#0f1830">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Drink-Budget">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0f1830;
+    --card: #18233f;
+    --card2: #202d50;
+    --text: #eef1f8;
+    --muted: #9aa5c0;
+    --pos: #3ddc84;
+    --neg: #ff5c6c;
+    --accent: #ffc928;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 24px);
+    max-width: 520px; margin: 0 auto;
+    touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+  }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; color: var(--muted); letter-spacing: .02em; }
+  .icon-btn {
+    background: var(--card); border: 0; color: var(--text); width: 40px; height: 40px;
+    border-radius: 12px; font-size: 20px; cursor: pointer;
+  }
+
+  /* Balance */
+  .balance {
+    background: var(--card); border-radius: var(--radius); padding: 22px 20px 18px; text-align: center;
+    margin-bottom: 20px;
+  }
+  .balance .label { color: var(--muted); font-size: 14px; }
+  .balance .amount { font-size: 54px; font-weight: 700; margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
+  .balance .amount.pos { color: var(--pos); }
+  .balance .amount.neg { color: var(--neg); }
+  .balance .hint { font-size: 15px; line-height: 1.4; }
+  .balance .sub { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+  h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin: 22px 4px 10px; text-transform: uppercase; letter-spacing: .06em; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .btn {
+    border: 0; border-radius: var(--radius); padding: 16px 12px; font-size: 16px; font-weight: 600;
+    color: var(--text); background: var(--card2); cursor: pointer; text-align: center;
+    transition: transform .08s ease, filter .08s ease;
+  }
+  .btn:active { transform: scale(.96); filter: brightness(1.2); }
+  .btn small { display: block; font-weight: 500; color: var(--accent); font-size: 15px; margin-top: 4px; }
+  .drink { min-height: 84px; }
+  .pay { background: #1d3b33; }
+  .pay small { color: var(--pos); }
+  .pays { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .pays .btn { padding: 16px 2px; }
+  .pays .btn small { font-size: 14px; margin-top: 0; }
+
+  /* History */
+  .history { background: var(--card); border-radius: var(--radius); overflow: hidden; }
+  .entry { display: flex; align-items: center; padding: 12px 14px; border-bottom: 1px solid #ffffff10; gap: 10px; }
+  .entry:last-child { border-bottom: 0; }
+  .entry .what { flex: 1; }
+  .entry .what div:last-child { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .entry .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .entry .val.pos { color: var(--pos); }
+  .entry .val.neg { color: var(--neg); }
+  .entry .del { background: none; border: 0; color: var(--muted); font-size: 18px; padding: 4px 6px; cursor: pointer; }
+  .empty { padding: 18px; color: var(--muted); text-align: center; font-size: 14px; }
+  .more { display: block; width: 100%; background: none; border: 0; color: var(--accent); padding: 12px; font-size: 15px; cursor: pointer; }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translateX(-50%) translateY(140%);
+    background: #2b3a63; color: var(--text); padding: 12px 14px 12px 18px; border-radius: 14px;
+    display: flex; gap: 14px; align-items: center; font-size: 15px; transition: transform .25s ease;
+    box-shadow: 0 8px 30px #0008; width: calc(100% - 32px); max-width: 488px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast span { flex: 1; }
+  .toast button { background: none; border: 0; color: var(--accent); font-weight: 700; font-size: 15px; cursor: pointer; }
+
+  /* Settings dialog */
+  dialog {
+    border: 0; border-radius: 22px; background: var(--card); color: var(--text); padding: 0;
+    width: calc(100% - 24px); max-width: 500px; max-height: 88vh;
+  }
+  dialog::backdrop { background: #000a; }
+  .dlg { padding: 18px; overflow-y: auto; max-height: 88vh; }
+  .dlg h3 { margin: 4px 0 14px; font-size: 20px; }
+  .dlg h4 { margin: 18px 0 8px; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .row input { flex: 1; min-width: 0; }
+  input {
+    background: var(--bg); color: var(--text); border: 1px solid #ffffff22; border-radius: 10px;
+    padding: 10px; font-size: 16px; -webkit-user-select: text; user-select: text;
+  }
+  input.price { flex: 0 0 90px; text-align: right; }
+  .small-btn { background: var(--card2); color: var(--text); border: 0; border-radius: 10px; padding: 10px 12px; font-size: 15px; cursor: pointer; }
+  .small-btn.danger { color: var(--neg); }
+  .small-btn.primary { background: var(--accent); color: #1a1a1a; font-weight: 700; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .note { color: var(--muted); font-size: 13px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Drink-Budget</h1>
+  <button class="icon-btn" id="openSettings" aria-label="Einstellungen">⚙︎</button>
+</header>
+
+<section class="balance">
+  <div class="label">Guthaben bei deinem Kollegen</div>
+  <div class="amount" id="balance">0,00 €</div>
+  <div class="hint" id="hint"></div>
+  <div class="sub" id="stats"></div>
+</section>
+
+<h2>Getrunken</h2>
+<div class="grid" id="drinks"></div>
+
+<h2>Zurückgezahlt</h2>
+<div class="pays" id="pays"></div>
+
+<h2>Verlauf</h2>
+<div class="history" id="history"></div>
+
+<div class="toast" id="toast"><span id="toastText"></span><button id="undoBtn">Rückgängig</button></div>
+
+<dialog id="settings">
+  <div class="dlg">
+    <h3 tabindex="-1" autofocus style="outline:none">Einstellungen</h3>
+
+    <h4>Getränke &amp; Preise</h4>
+    <div id="drinkEdit"></div>
+    <div class="actions"><button class="small-btn" id="addDrink">+ Getränk hinzufügen</button></div>
+
+    <h4>Rückzahl-Beträge (€)</h4>
+    <div class="row" id="payEdit"></div>
+
+    <h4>Daten</h4>
+    <p class="note">Die Daten liegen nur auf diesem iPhone. Ein Backup als Datei schützt vor Verlust (z.B. wenn du die App vom Home-Bildschirm löschst).</p>
+    <div class="actions">
+      <button class="small-btn" id="exportBtn">Backup exportieren</button>
+      <button class="small-btn" id="importBtn">Backup importieren</button>
+      <button class="small-btn danger" id="resetBtn">Verlauf löschen</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+
+    <div class="actions" style="margin-top:20px; justify-content:flex-end">
+      <button class="small-btn" id="cancelSettings">Abbrechen</button>
+      <button class="small-btn primary" id="saveSettings">Speichern</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const KEY = 'drinkbudget.v1';
+  const HISTORY_PAGE = 15;
+
+  // Alle Beträge in Cent, um Rundungsfehler zu vermeiden
+  const DEFAULTS = {
+    drinks: [
+      { id: 'd1', name: 'Red Bull 0,25 l', price: 149 },
+      { id: 'd2', name: 'Red Bull 0,355 l', price: 199 },
+      { id: 'd3', name: 'Red Bull 0,473 l', price: 249 },
+      { id: 'd4', name: 'Red Bull Sugarfree 0,25 l', price: 149 },
+    ],
+    payments: [500, 1000, 2000, 5000],
+    entries: [] // { id, type: 'drink'|'pay', label, amount, ts }
+  };
+
+  let state = load();
+  let shown = HISTORY_PAGE;
+  let lastAddedId = null;
+  let toastTimer = null;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (c) => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  const fmtShort = (c) => (c % 100 === 0 ? (c / 100) + ' €' : fmt(c));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        return { ...structuredClone(DEFAULTS), ...s };
+      }
+    } catch (e) { console.warn('Konnte Daten nicht laden', e); }
+    return structuredClone(DEFAULTS);
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); }
+  }
+
+  const balance = () => state.entries.reduce((s, e) => s + (e.type === 'pay' ? e.amount : -e.amount), 0);
+
+  // ---------- Rendering ----------
+  function render() {
+    const b = balance();
+    const el = $('balance');
+    el.textContent = fmt(b);
+    el.className = 'amount ' + (b > 0 ? 'pos' : b < 0 ? 'neg' : '');
+
+    const cheapest = state.drinks.length ? state.drinks.reduce((a, d) => d.price < a.price ? d : a) : null;
+    let hint = '';
+    if (b > 0 && cheapest) {
+      const n = Math.floor(b / cheapest.price);
+      hint = n > 0
+        ? `Reicht noch für <b>${n}×</b> ${esc(cheapest.name)}`
+        : `Fast aufgebraucht – bald mal wieder zurückzahlen.`;
+    } else if (b < 0) {
+      const debt = -b;
+      const suggestion = state.payments.slice().sort((x, y) => x - y).find(p => p >= debt) ?? Math.max(...state.payments);
+      hint = `Du schuldest ihm <b>${fmt(debt)}</b>.<br>Mit ${fmtShort(suggestion)} wärst du bei ${fmt(suggestion - debt)}.`;
+    } else {
+      hint = state.entries.length ? 'Alles ausgeglichen 👍' : 'Tippe auf ein Getränk oder eine Rückzahlung, um zu starten.';
+    }
+    $('hint').innerHTML = hint;
+
+    const drinksCount = state.entries.filter(e => e.type === 'drink').length;
+    const paid = state.entries.filter(e => e.type === 'pay').reduce((s, e) => s + e.amount, 0);
+    $('stats').textContent = state.entries.length ? `Insgesamt ${drinksCount} Getränke · ${fmt(paid)} zurückgezahlt` : '';
+
+    // Getränke-Buttons
+    const dw = $('drinks');
+    dw.innerHTML = '';
+    state.drinks.forEach(d => {
+      const btn = document.createElement('button');
+      btn.className = 'btn drink';
+      btn.innerHTML = `${esc(d.name)}<small>−${fmt(d.price)}</small>`;
+      btn.onclick = () => addEntry('drink', d.name, d.price);
+      dw.appendChild(btn);
+    });
+
+    // Rückzahl-Buttons
+    const pw = $('pays');
+    pw.innerHTML = '';
+    state.payments.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'btn pay';
+      btn.innerHTML = `<small>+${fmtShort(p)}</small>`;
+      btn.onclick = () => addEntry('pay', 'Rückzahlung', p);
+      pw.appendChild(btn);
+    });
+    const other = document.createElement('button');
+    other.className = 'btn pay';
+    other.innerHTML = `<small>Anderer</small>`;
+    other.onclick = customPayment;
+    pw.appendChild(other);
+
+    // Verlauf
+    const hw = $('history');
+    hw.innerHTML = '';
+    const list = state.entries.slice().reverse();
+    if (!list.length) {
+      hw.innerHTML = '<div class="empty">Noch keine Einträge</div>';
+    } else {
+      list.slice(0, shown).forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'entry';
+        const isPay = e.type === 'pay';
+        row.innerHTML = `
+          <div>${isPay ? '💶' : '⚡'}</div>
+          <div class="what"><div>${esc(e.label)}</div><div>${fmtDate(e.ts)}</div></div>
+          <div class="val ${isPay ? 'pos' : 'neg'}">${isPay ? '+' : '−'}${fmt(e.amount)}</div>
+          <button class="del" aria-label="Löschen">✕</button>`;
+        row.querySelector('.del').onclick = () => {
+          if (confirm(`„${e.label}" (${fmt(e.amount)}) löschen?`)) {
+            state.entries = state.entries.filter(x => x.id !== e.id);
+            save(); render();
+          }
+        };
+        hw.appendChild(row);
+      });
+      if (list.length > shown) {
+        const more = document.createElement('button');
+        more.className = 'more';
+        more.textContent = `Mehr anzeigen (${list.length - shown} weitere)`;
+        more.onclick = () => { shown += HISTORY_PAGE; render(); };
+        hw.appendChild(more);
+      }
+    }
+  }
+
+  function fmtDate(ts) {
+    const d = new Date(ts);
+    const today = new Date();
+    const y = new Date(); y.setDate(today.getDate() - 1);
+    const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === today.toDateString()) return 'Heute, ' + time;
+    if (d.toDateString() === y.toDateString()) return 'Gestern, ' + time;
+    return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' }) + ', ' + time;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // ---------- Aktionen ----------
+  function addEntry(type, label, amount) {
+    const e = { id: uid(), type, label, amount, ts: Date.now() };
+    state.entries.push(e);
+    save(); render();
+    lastAddedId = e.id;
+    showToast(type === 'pay' ? `${fmt(amount)} zurückgezahlt` : `${label} abgezogen`);
+  }
+
+  function customPayment() {
+    const v = prompt('Betrag in € (z.B. 15 oder 7,50):');
+    if (v == null) return;
+    const cents = parseEuro(v);
+    if (!cents || cents <= 0) { alert('Ungültiger Betrag'); return; }
+    addEntry('pay', 'Rückzahlung', cents);
+  }
+
+  function parseEuro(v) {
+    const n = parseFloat(String(v).replace(/[^\d,.\-]/g, '').replace(',', '.'));
+    return isNaN(n) ? null : Math.round(n * 100);
+  }
+
+  function showToast(text) {
+    $('toastText').textContent = text;
+    $('toast').classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4000);
+  }
+  $('undoBtn').onclick = () => {
+    if (lastAddedId) {
+      state.entries = state.entries.filter(e => e.id !== lastAddedId);
+      lastAddedId = null;
+      save(); render();
+    }
+    $('toast').classList.remove('show');
+  };
+
+  // ---------- Einstellungen ----------
+  let draftDrinks = [];
+
+  function openSettings() {
+    draftDrinks = state.drinks.map(d => ({ ...d }));
+    renderDrinkEdit();
+    const pe = $('payEdit');
+    pe.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+      const inp = document.createElement('input');
+      inp.inputMode = 'decimal';
+      inp.className = 'price';
+      inp.style.flex = '1';
+      inp.value = state.payments[i] != null ? (state.payments[i] / 100).toString().replace('.', ',') : '';
+      pe.appendChild(inp);
+    }
+    $('settings').showModal();
+  }
+
+  function renderDrinkEdit() {
+    const w = $('drinkEdit');
+    w.innerHTML = '';
+    draftDrinks.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `
+        <input type="text" value="${esc(d.name)}" placeholder="Name">
+        <input type="text" class="price" inputmode="decimal" value="${(d.price / 100).toFixed(2).replace('.', ',')}" placeholder="Preis">
+        <button class="small-btn danger" aria-label="Entfernen">✕</button>`;
+      const [nameIn, priceIn] = row.querySelectorAll('input');
+      nameIn.oninput = () => d.name = nameIn.value;
+      priceIn.oninput = () => d.price = parseEuro(priceIn.value) ?? 0;
+      row.querySelector('button').onclick = () => { draftDrinks.splice(i, 1); renderDrinkEdit(); };
+      w.appendChild(row);
+    });
+  }
+
+  $('openSettings').onclick = openSettings;
+  $('addDrink').onclick = () => { draftDrinks.push({ id: uid(), name: '', price: 0 }); renderDrinkEdit(); };
+  $('cancelSettings').onclick = () => $('settings').close();
+  $('saveSettings').onclick = () => {
+    const drinks = draftDrinks.filter(d => d.name.trim() && d.price > 0).map(d => ({ ...d, name: d.name.trim() }));
+    if (!drinks.length) { alert('Mindestens ein Getränk mit Name und Preis wird benötigt.'); return; }
+    const payments = [...$('payEdit').querySelectorAll('input')]
+      .map(i => parseEuro(i.value)).filter(v => v && v > 0);
+    if (!payments.length) { alert('Mindestens ein Rückzahl-Betrag wird benötigt.'); return; }
+    state.drinks = drinks;
+    state.payments = payments;
+    save(); render();
+    $('settings').close();
+  };
+
+  $('exportBtn').onclick = async () => {
+    const json = JSON.stringify(state, null, 2);
+    const name = `drink-budget-${new Date().toISOString().slice(0, 10)}.json`;
+    const file = new File([json], name, { type: 'application/json' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Drink-Budget Backup' });
+        return;
+      }
+    } catch (e) { if (e.name === 'AbortError') return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = async (ev) => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data.entries) || !Array.isArray(data.drinks)) throw new Error('Unbekanntes Format');
+      if (!confirm(`Backup mit ${data.entries.length} Einträgen laden? Die aktuellen Daten werden ersetzt.`)) return;
+      state = { ...structuredClone(DEFAULTS), ...data };
+      save(); render();
+      $('settings').close();
+    } catch (e) {
+      alert('Import fehlgeschlagen: ' + e.message);
+    } finally {
+      ev.target.value = '';
+    }
+  };
+
+  $('resetBtn').onclick = () => {
+    if (confirm('Wirklich den gesamten Verlauf löschen? Das Guthaben steht danach auf 0 €.')) {
+      state.entries = [];
+      save(); render();
+      $('settings').close();
+    }
+  };
+
+  render();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW-Fehler', e));
+  }
+})();
+</script>
+</body>
+</html>
